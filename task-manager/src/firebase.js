@@ -1,9 +1,9 @@
-// src/firebase/config.js
+// src/firebase.js
+import firebase from "firebase/compat/app";
+import "firebase/compat/auth";
+import "firebase/compat/firestore";
 
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-
+// Firebase config from your console
 const firebaseConfig = {
   apiKey: "AIzaSyBumsJxK4s15vpHUDZjpqjE2YsX8nol8uo",
   authDomain: "task-manager-892b6.firebaseapp.com",
@@ -14,9 +14,11 @@ const firebaseConfig = {
   measurementId: "G-Z09VTPYTF3"
 };
 
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
 
-const auth = getAuth(app);
-const db = getFirestore(app);
+// Export auth and Firestore DB
+const auth = firebase.auth();
+const db = firebase.firestore();
 
 export { auth, db };

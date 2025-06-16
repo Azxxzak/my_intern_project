@@ -1,42 +1,48 @@
 <template>
-  <div class="auth">
+  <div class="auth-container">
     <h2>Login</h2>
     <form @submit.prevent="login">
       <input type="email" v-model="email" placeholder="Email" required />
       <input type="password" v-model="password" placeholder="Password" required />
       <button type="submit">Login</button>
     </form>
-    <p>Don't have an account? <router-link to="/register">Register</router-link></p>
+    <router-link to="/register">Don't have an account? Register</router-link>
   </div>
 </template>
 
 <script>
-import { auth } from '../firebase/config';
+import { auth } from "../firebase";
 
 export default {
+    name: "UserLogin",
   data() {
     return {
-      email: '',
-      password: ''
+      email: "",
+      password: "",
     };
   },
   methods: {
     async login() {
       try {
         await auth.signInWithEmailAndPassword(this.email, this.password);
-        this.$router.push('/dashboard');
+        this.$router.push("/tasks");
       } catch (err) {
-        alert(err.message);
+        alert("Login failed: " + err.message);
       }
-    }
-  }
+    },
+  },
 };
 </script>
 
 <style scoped>
-.auth {
+.auth-container {
   max-width: 400px;
   margin: auto;
   padding: 2rem;
+}
+input {
+  display: block;
+  margin-bottom: 1rem;
+  width: 100%;
 }
 </style>
