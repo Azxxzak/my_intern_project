@@ -147,8 +147,13 @@ export default {
       await this.loadTasks();
     },
     logout() {
-      auth.signOut();
-      this.$router.push("/login");
+    auth.signOut().then(() => {
+    this.$router.push("/login").catch(err => {
+      if (err.name !== "NavigationDuplicated") {
+        throw err;
+      }
+    });
+  });
     },
   },
 };
