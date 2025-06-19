@@ -9,7 +9,6 @@ export default {
 </script>
 
 <style>
-/* Optionally add global styles */
 body {
   font-family: sans-serif;
   background-color: #f9f9f9;
