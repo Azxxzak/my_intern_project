@@ -1,7 +1,7 @@
 <template>
   <div class="task-wrapper">
     <div class="task-box">
-      <h2 class="task-title">📋 Kanban Board</h2>
+      <h2 class="task-title">Board</h2>
 
       <!-- Sorting -->
       <div class="task-sort">
@@ -15,16 +15,12 @@
       <!-- Task submission form -->
       <form @submit.prevent="addTask" class="task-form">
         <input v-model="newTask" placeholder="New task title" required />
-        <textarea
-          v-model="newDescription"
-          placeholder="Task description"
-          required
-        ></textarea>
+        <textarea v-model="newDescription" placeholder="Task description" required></textarea>
         <input type="date" v-model="newDueDate" required />
         <select v-model="newPriority">
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
+          <option value="low">Minor</option>
+          <option value="medium">Normal</option>
+          <option value="high">Urgent</option>
         </select>
         <select v-model="newStatus">
           <option value="Open">To Do</option>
@@ -35,13 +31,15 @@
         <button type="submit">Add</button>
       </form>
 
-      <!-- Syncfusion Kanban board -->
+      <!-- Kanban Board -->
       <ejs-kanban
         id="kanban"
         keyField="Status"
         :dataSource="tasks"
+        :allowDragAndDrop="true"
+        :enableTooltip="false"
         :cardSettings="cardSettings"
-        :swimlaneSettings="{ keyField: 'userEmail' }"
+        :swimlaneSettings="{ keyField: 'swimlaneKey' }"
         @cardClick="handleCardClick"
         @dragStop="onCardDrop"
         class="kanban-board"
@@ -56,7 +54,6 @@
 
       <button class="logout-btn" @click="logout">Logout</button>
 
-      <!-- Modal Component -->
       <TaskModal
         v-if="selectedTask"
         :task="selectedTask"
@@ -114,6 +111,7 @@ export default {
             </div>
           </div>
         `,
+        sortComparer: () => 0, 
       },
     };
   },
@@ -121,46 +119,73 @@ export default {
     auth.onAuthStateChanged(async (user) => {
       if (user) {
         this.user = user;
+        this.setCardSettings();
         await this.loadTasks();
         this.checkReminders();
       } else {
-        this.$router.push("/login");
+        this.$router.push("/login").catch((err) => {
+          if (err.name !== "NavigationDuplicated") {
+            console.error("Router error:", err);
+          }
+        });
       }
     });
   },
   methods: {
+    setCardSettings() {
+      this.cardSettings.sortComparer = (a, b) => {
+        const option = this.sortOption;
+        if (option === "dueDate") {
+          const dateA = new Date(a.dueDate?.seconds * 1000 || a.dueDate);
+          const dateB = new Date(b.dueDate?.seconds * 1000 || b.dueDate);
+          return dateA - dateB;
+        } else if (option === "priority") {
+          const levels = { high: 1, medium: 2, low: 3 };
+          return levels[a.priority] - levels[b.priority];
+        }
+        return 0;
+      };
+    },
     async loadTasks() {
       const taskMap = {};
+      const userEmail = this.user.email;
+
       const ownerSnapshot = await db
         .collection("tasks")
         .where("userId", "==", this.user.uid)
         .get();
+
       ownerSnapshot.forEach((doc) => {
         const data = doc.data();
         taskMap[doc.id] = {
           id: doc.id,
           ...data,
-          userEmail: this.user.email,
+          userEmail,
+          swimlaneKey: "_" + userEmail,
           dueDateFormatted: new Date(data.dueDate.seconds * 1000)
             .toISOString()
             .split("T")[0],
         };
       });
+
       const sharedSnapshot = await db
         .collection("tasks")
-        .where("sharedWith", "array-contains", this.user.email)
+        .where("sharedWith", "array-contains", userEmail)
         .get();
+
       sharedSnapshot.forEach((doc) => {
         const data = doc.data();
         taskMap[doc.id] = {
           id: doc.id,
           ...data,
           userEmail: data.userEmail,
+          swimlaneKey: data.userEmail === userEmail ? "_" + userEmail : data.userEmail,
           dueDateFormatted: new Date(data.dueDate.seconds * 1000)
             .toISOString()
             .split("T")[0],
         };
       });
+
       this.tasks = Object.values(taskMap);
       this.sortTasks();
     },
@@ -199,37 +224,24 @@ export default {
         this.selectedTask = null;
         await this.loadTasks();
       } catch (error) {
-        console.error("🗑️ Failed to delete task:", error);
+        console.error("Failed to delete task:", error);
       }
     },
     async updateTask(task) {
-      const {
-        id,
-        title,
-        description,
-        Status,
-        dueDateFormatted,
-        sharedWith = [],
-      } = task;
-
+      const { id, title, description, Status, dueDateFormatted, sharedWith = [] } = task;
       if (!id || typeof Status === "undefined") return;
-
       try {
-        await db
-          .collection("tasks")
-          .doc(id)
-          .update({
-            title: title || "",
-            description: description || "",
-            Status,
-            dueDate: new Date(dueDateFormatted),
-            sharedWith,
-          });
-
+        await db.collection("tasks").doc(id).update({
+          title: title || "",
+          description: description || "",
+          Status,
+          dueDate: new Date(dueDateFormatted),
+          sharedWith,
+        });
         this.selectedTask = null;
         await this.loadTasks();
       } catch (error) {
-        console.error("🔥 Failed to update task:", error);
+        console.error("Failed to update task:", error);
       }
     },
     async onCardDrop(args) {
@@ -245,12 +257,7 @@ export default {
       }
     },
     sortTasks() {
-      if (this.sortOption === "dueDate") {
-        this.tasks.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-      } else if (this.sortOption === "priority") {
-        const levels = { high: 1, medium: 2, low: 3 };
-        this.tasks.sort((a, b) => levels[a.priority] - levels[b.priority]);
-      }
+      this.setCardSettings();
     },
     checkReminders() {
       const now = new Date();
@@ -276,6 +283,7 @@ export default {
   },
 };
 </script>
+
 
 <style scoped>
 .task-wrapper {
@@ -334,7 +342,7 @@ export default {
 }
 .task-form button {
   padding: 0.75rem 1.5rem;
-  background: #3b82f6;
+  background: #41b883;
   color: white;
   font-weight: 600;
   border: none;
@@ -343,7 +351,7 @@ export default {
   transition: background 0.3s ease;
 }
 .task-form button:hover {
-  background: #2563eb;
+  background: #49cf93;
 }
 .logout-btn {
   margin-top: 2rem;
@@ -358,9 +366,10 @@ export default {
 }
 .kanban-board {
   margin-top: 2rem;
+  overflow: auto;
 }
 
-/* Kanban Cards */
+/* Cards */
 ::v-deep .custom-card {
   padding: 1rem;
   border-radius: 12px;
@@ -389,14 +398,14 @@ export default {
   border-radius: 5px;
   padding: 2px 6px;
   font-size: 0.75rem;
-  margin-top: 0.5rem;
 }
 ::v-deep .card-footer {
   margin-top: 0.5rem;
   font-size: 0.75rem;
   color: #6b7280;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 ::v-deep .e-swimlane-header {
   display: flex;
@@ -417,63 +426,25 @@ export default {
   align-items: center;
   justify-content: center;
 }
+::v-deep .e-kanban-dragged-card {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  opacity: 0.95;
+}
+
 textarea {
   max-height: 32px;
   min-height: 26px;
 }
+::v-deep .e-kanban {
+  user-select: none;
+}
+::v-deep .e-content-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
 
-/* Modal */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 999;
-}
-.modal-content {
-  background: #ffffff;
-  padding: 2rem;
-  border-radius: 12px;
-  width: 100%;
-  max-width: 420px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-}
-.modal-content input,
-.modal-content textarea {
-  width: 100%;
-  margin-bottom: 1rem;
-  padding: 0.75rem;
-  font-size: 1rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  background: #f9fafb;
-}
-.modal-actions {
-  display: flex;
-  justify-content: space-between;
-}
-.modal-actions button {
-  padding: 0.5rem 1.2rem;
-  border: none;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.modal-actions button:nth-child(1) {
-  background: #22c55e;
-  color: white;
-}
-.modal-actions button:nth-child(2) {
-  background: #ef4444;
-  color: white;
-}
-.modal-actions button:nth-child(3) {
-  background: #e5e7eb;
-  color: #374151;
+::v-deep .e-swimlane-row {
+  display: table-row !important;
 }
 </style>

@@ -3,16 +3,17 @@
     <div class="modal-content">
       <h3>Edit Task</h3>
       <input v-model="editableTask.title" placeholder="Title" />
-      <textarea v-model="editableTask.description" placeholder="Description" rows="3"></textarea>
+      <textarea
+        v-model="editableTask.description"
+        placeholder="Description"
+        rows="3"
+      ></textarea>
       <input type="date" v-model="editableTask.dueDateFormatted" />
 
       <div v-if="editableTask.userId === currentUserId">
         <label>Share with (emails):</label>
         <div class="share-input">
-          <input
-            v-model="sharedUser"
-            placeholder="Enter email"
-          />
+          <input v-model="sharedUser" placeholder="Enter email" />
           <button class="share-btn" @click="addSharedUser">Share</button>
         </div>
 
@@ -118,12 +119,17 @@ export default {
 
 .modal-content input,
 .modal-content textarea {
-  width: 100%;
+  display: flex;
   padding: 0.75rem 1rem;
   border: 1px solid #cbd5e1;
   border-radius: 10px;
   background: #f8fafc;
   font-size: 1rem;
+  max-width: 466px;
+}
+textarea {
+    max-height: 54px;
+    min-height: 54px;
 }
 
 .share-input {
@@ -183,7 +189,7 @@ export default {
 
 .modal-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 1rem;
 }
 

@@ -21,7 +21,7 @@ export default new Router({
     {
       path: "/tasks",
       name: "Tasks",
-      component: () => import("../views/Tasks.vue"), // дараа үүсгэнэ
+      component: () => import("../views/Tasks.vue"), 
     },
     {
       path: "*",
